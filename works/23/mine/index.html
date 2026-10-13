@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<!-- 넣은 문장: 화면 아래 작은 재생 막대를 위로 끌면 재생목록 시트가 3단계 높이(80px, 화면 50%, 화면 90%)로 착 붙으며 열리고, 아래로 내리면 한 단계씩 닫히게 해 줘. 붙을 때 0.35초, 끝에서 살짝 튕기며 멈춤. 시트가 50%일 때 뒤 화면이 30% 어두워져. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>재생목록 시트</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --fg: #1d1d1f;
+    --muted: #8a8a8e;
+    --accent: #5b5bd6;
+    --sheet: #ffffff;
+    --line: #ececea;
+    --dur: 0.35s;                                   /* 착 붙는 시간 */
+    --bounce: cubic-bezier(0.34, 1.4, 0.64, 1);     /* 끝에서 살짝 튕기는 곡선 */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #e4e3df;
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    overflow: hidden;
+  }
+
+  /* 휴대폰 크기의 화면 하나 (넓은 창에서는 가운데에 놓임) */
+  .app {
+    position: relative;
+    width: min(100%, 440px);
+    height: 100vh;
+    margin: 0 auto;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  /* 뒤 화면: 음악 앱 홈 */
+  .home { height: 100%; padding: 56px 20px 0; overflow: hidden; }
+  .home h1 { margin: 0 0 4px; font-size: 28px; }
+  .home p.hint { margin: 0 0 28px; color: var(--muted); font-size: 14px; }
+  .home h2 { margin: 0 0 12px; font-size: 16px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+  .card { aspect-ratio: 1; border-radius: 12px; }
+  .card:nth-child(1) { background: linear-gradient(135deg, #ff9a8b, #ff6a88); }
+  .card:nth-child(2) { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); }
+  .card:nth-child(3) { background: linear-gradient(135deg, #fbc2eb, #a6c1ee); }
+  .card:nth-child(4) { background: linear-gradient(135deg, #84fab0, #8fd3f4); }
+  .card:nth-child(5) { background: linear-gradient(135deg, #fddb92, #d1fdff); }
+  .card:nth-child(6) { background: linear-gradient(135deg, #cfd9df, #e2ebf0); }
+
+  /* 뒤 화면 어둡게 */
+  .dim {
+    position: absolute; inset: 0;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--dur) ease;
+    z-index: 5;
+  }
+
+  /* 재생목록 시트 */
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 90vh;
+    background: var(--sheet);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+    transform: translateY(calc(90vh - 80px));
+    transition: transform var(--dur) var(--bounce);
+    will-change: transform;
+    z-index: 10;
+  }
+  .sheet.dragging { transition: none; }
+  /* 튕길 때 시트 아래가 비어 보이지 않게 */
+  .sheet::after {
+    content: "";
+    position: absolute; left: 0; right: 0; top: 100%;
+    height: 80px;
+    background: var(--sheet);
+  }
+
+  /* 재생 막대 (끌어서 움직이는 부분) */
+  .bar {
+    position: relative;
+    height: 80px;
+    padding: 14px 16px 0;
+    display: flex; align-items: center; gap: 12px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none; -webkit-user-select: none;
+  }
+  .sheet.dragging .bar { cursor: grabbing; }
+  .grab {
+    position: absolute; top: 6px; left: 50%;
+    width: 36px; height: 4px; margin-left: -18px;
+    border-radius: 2px; background: #d2d2d6;
+  }
+  .art {
+    flex: none; width: 48px; height: 48px; border-radius: 8px;
+    background: linear-gradient(135deg, #ff9a8b, #ff6a88);
+  }
+  .meta { flex: 1; min-width: 0; }
+  .meta b { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta span { display: block; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .play { flex: none; width: 36px; height: 36px; display: grid; place-items: center; }
+  .play svg { width: 22px; height: 22px; fill: var(--fg); }
+
+  /* 재생목록 */
+  .list {
+    height: calc(100% - 80px);
+    overflow-y: auto;
+    padding: 0 16px;
+    border-top: 1px solid var(--line);
+  }
+  .list h3 { margin: 16px 0 4px; font-size: 14px; color: var(--muted); font-weight: 600; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .row .n { width: 22px; text-align: center; font-size: 13px; color: var(--muted); }
+  .row .t { flex: 1; min-width: 0; }
+  .row .t b { display: block; font-size: 15px; font-weight: 500; }
+  .row .t span { display: block; font-size: 13px; color: var(--muted); }
+  .row .d { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .row.now .n, .row.now .t b { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <div class="home">
+    <h1>홈</h1>
+    <p class="hint">아래 재생 막대를 위로 끌어 보세요.</p>
+    <h2>최근 들은 앨범</h2>
+    <div class="cards"><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div></div>
+    <h2>오늘의 추천</h2>
+    <div class="cards"><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div><div class="card"></div></div>
+  </div>
+
+  <div class="dim" id="dim"></div>
+
+  <section class="sheet" id="sheet" aria-label="재생목록">
+    <div class="bar" id="bar">
+      <div class="grab"></div>
+      <div class="art"></div>
+      <div class="meta"><b>새벽 드라이브</b><span>루나 파크</span></div>
+      <div class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg></div>
+    </div>
+    <div class="list" id="list">
+      <h3>재생목록 · 12곡</h3>
+      <div class="row now"><span class="n">1</span><div class="t"><b>새벽 드라이브</b><span>루나 파크</span></div><span class="d">3:42</span></div>
+      <div class="row"><span class="n">2</span><div class="t"><b>창가의 오후</b><span>모모 앤 하루</span></div><span class="d">3:05</span></div>
+      <div class="row"><span class="n">3</span><div class="t"><b>느린 파도</b><span>해이</span></div><span class="d">4:11</span></div>
+      <div class="row"><span class="n">4</span><div class="t"><b>골목 끝 가로등</b><span>루나 파크</span></div><span class="d">2:58</span></div>
+      <div class="row"><span class="n">5</span><div class="t"><b>여름의 끝</b><span>소담</span></div><span class="d">3:33</span></div>
+      <div class="row"><span class="n">6</span><div class="t"><b>두고 온 우산</b><span>모모 앤 하루</span></div><span class="d">3:47</span></div>
+      <div class="row"><span class="n">7</span><div class="t"><b>종이비행기</b><span>해이</span></div><span class="d">2:44</span></div>
+      <div class="row"><span class="n">8</span><div class="t"><b>밤 열한 시</b><span>소담</span></div><span class="d">4:02</span></div>
+      <div class="row"><span class="n">9</span><div class="t"><b>빈 교실</b><span>루나 파크</span></div><span class="d">3:19</span></div>
+      <div class="row"><span class="n">10</span><div class="t"><b>첫눈 예보</b><span>모모 앤 하루</span></div><span class="d">3:28</span></div>
+      <div class="row"><span class="n">11</span><div class="t"><b>돌아가는 길</b><span>해이</span></div><span class="d">3:56</span></div>
+      <div class="row"><span class="n">12</span><div class="t"><b>다음 정거장</b><span>소담</span></div><span class="d">2:51</span></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  var app = document.getElementById('app');
+  var sheet = document.getElementById('sheet');
+  var bar = document.getElementById('bar');
+  var list = document.getElementById('list');
+  var dim = document.getElementById('dim');
+
+  var DIM = [0, 0.3, 0];   // 단계별 뒤 화면 어두운 정도: 80px / 화면 50% / 화면 90% (50%일 때만 30%)
+  var COMMIT = 0.25;       // 다음 단계까지 거리의 이만큼 끌면 그 단계로 넘어감
+
+  var stops = [];          // 단계별 시트 높이(px): [80, 화면 50%, 화면 90%]
+  var idx = 0;             // 지금 붙어 있는 단계 (0, 1, 2)
+  var drag = null;
+
+  function measure() {
+    var H = app.clientHeight || window.innerHeight || 800;
+    stops = [80, Math.round(H * 0.5), Math.round(H * 0.9)];
+    sheet.style.height = stops[2] + 'px';
+  }
+  function place(h) { sheet.style.transform = 'translateY(' + (stops[2] - h) + 'px)'; }
+  function settle(i) {
+    idx = i;
+    place(stops[i]);
+    dim.style.opacity = DIM[i];
+    list.style.paddingBottom = (stops[2] - stops[i]) + 'px';   // 목록 끝까지 스크롤되게
+  }
+
+  // 손을 뗐을 때 어느 단계에 붙을지
+  function pick(s, h) {
+    var cur = stops[s], t = s, i;
+    if (h > cur) {                                  // 위로 끌었을 때: 가까운 단계에 붙음
+      for (i = s; i < stops.length; i++) {
+        if (Math.abs(stops[i] - h) < Math.abs(stops[t] - h)) t = i;
+      }
+      if (s < 2 && h - cur > (stops[s + 1] - cur) * COMMIT) t = Math.max(t, s + 1);
+      return t;
+    }
+    if (h < cur && s > 0 && cur - h > (cur - stops[s - 1]) * COMMIT) return s - 1;   // 아래로: 한 단계만
+    return s;
+  }
+
+  bar.addEventListener('pointerdown', function (e) {
+    if (e.button) return;
+    try { bar.setPointerCapture(e.pointerId); } catch (err) {}
+    sheet.classList.add('dragging');
+    drag = { id: e.pointerId, y0: e.clientY, s: idx, h: stops[idx] };
+  });
+  bar.addEventListener('pointermove', function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var h = stops[drag.s] + (drag.y0 - e.clientY);
+    drag.h = Math.max(stops[0], Math.min(stops[2], h));
+    place(drag.h);
+  });
+  function end(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var d = drag;
+    drag = null;
+    sheet.classList.remove('dragging');
+    void sheet.offsetHeight;                        // 지금 위치에서 출발하도록
+    settle(pick(d.s, d.h));
+  }
+  bar.addEventListener('pointerup', end);
+  bar.addEventListener('pointercancel', end);
+
+  window.addEventListener('resize', function () {
+    sheet.classList.add('dragging');                // 창 크기가 바뀔 때는 튕기지 않게
+    measure();
+    settle(idx);
+    void sheet.offsetHeight;
+    sheet.classList.remove('dragging');
+  });
+
+  measure();
+  settle(0);
+})();
+</script>
+<script src="../../../assets/bar.js" data-no="23" data-kind="mine"></script>
+</body>
+</html>

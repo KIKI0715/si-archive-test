@@ -367,10 +367,10 @@ window.WORKS = {
     "date": ""
    },
    "mine": {
-    "done": false,
-    "date": "",
-    "title": "",
-    "changed": ""
+    "done": true,
+    "date": "2026-10-13",
+    "title": "재생목록 시트",
+    "changed": "바텀 시트를 음악 재생목록으로, 높이 3단계에 뒤 화면 어두워짐 추가"
    }
   },
   {
