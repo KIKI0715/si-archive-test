@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>글자 떠오르기</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --fg: #1d1d1f;
+    --muted: #8a8a8e;
+    --rise: 40px;     /* 아래에서 떠오르는 거리 */
+    --dur: 0.4s;      /* 한 글자 애니메이션 시간 */
+    --stagger: 0.06s; /* 다음 글자 출발 간격 */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+  .hint {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 16px;
+    padding: 0 16px;
+    text-align: center;
+  }
+  section {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 16px;
+  }
+  .word {
+    margin: 0;
+    font-size: clamp(40px, 10vw, 120px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    text-align: center;
+  }
+  /* 글자 하나: 아래 40px, 투명 상태에서 대기 */
+  .word .ch {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(var(--rise));
+    transition:
+      transform var(--dur) cubic-bezier(0.22, 1, 0.36, 1),
+      opacity var(--dur) ease-out;
+    transition-delay: calc(var(--i) * var(--stagger));
+    will-change: transform, opacity;
+  }
+  /* 화면에 들어오면 제자리로 */
+  .word.in .ch {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .word .ch { transition: none; opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="hint">아래로 스크롤하세요 ↓</div>
+
+  <section><h1 class="word">Interaction</h1></section>
+  <section><h1 class="word">스마트 인터랙션</h1></section>
+  <section><h1 class="word">Motion Design</h1></section>
+
+<script>
+  // 1) 단어를 글자 단위 span으로 쪼개고 순번(--i)을 매긴다
+  document.querySelectorAll('.word').forEach(function (el) {
+    var text = el.textContent;
+    el.setAttribute('aria-label', text);
+    el.textContent = '';
+    Array.from(text).forEach(function (c, i) {
+      var s = document.createElement('span');
+      s.className = 'ch';
+      s.setAttribute('aria-hidden', 'true');
+      s.textContent = c === ' ' ? ' ' : c;
+      s.style.setProperty('--i', i);
+      el.appendChild(s);
+    });
+  });
+
+  // 2) 화면에 들어오면 .in 클래스를 붙여 애니메이션 시작 (한 번만)
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.4 });
+
+  document.querySelectorAll('.word').forEach(function (el) { io.observe(el); });
+</script>
+<script src="../../../assets/bar.js" data-no="47" data-kind="follow"></script>
+</body>
+</html>
