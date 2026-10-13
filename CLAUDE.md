@@ -4,6 +4,14 @@
 카탈로그 92개(1~46 인터랙션, 47~92 모션)마다 **따라 하기 1개 + 내 응용 1개**, 모두 184개를 올립니다.
 사이트는 GitHub Pages로 공개됩니다: `https://<GitHub 아이디>.github.io/si-archive/`
 
+## 주소 만드는 법
+- **사이트 주소**: `git remote get-url origin` 에서 아이디와 저장소 이름을 읽어 `https://<아이디 소문자>.github.io/<저장소 이름>/` 로 만듭니다. (보통 저장소 이름은 `si-archive`)
+- **실습 하나의 주소**: 사이트 주소 + `works/NN/follow/` 또는 `works/NN/mine/` (예: `.../si-archive/works/23/mine/`)
+- 아직 서버에 연결 전이면(원격 없음) 주소 대신 "6. 처음 한 번" 을 먼저 하자고 안내합니다.
+
+## 단축어 (학생이 써도 되고, 그냥 말로 해도 됩니다)
+`/add 23 follow` · `/add 23 mine` → 1. 실습 추가 · `/publish` → 3. 올리기 · `/undo` → 4. 되돌리기 · `/check` → 5. 점검
+
 ## 말하는 방식
 - 학생에게는 쉬운 말로 설명합니다. 명령어·라이브러리 이름·코드 설명은 학생이 물을 때만 합니다.
 - 한 번에 한 가지만 합니다. 요청받지 않은 개선·정리·디자인 변경을 하지 않습니다.
@@ -21,8 +29,8 @@ works/NN/mine/index.html     NN번 내 응용
 ## 1. 실습 추가 — "23번 따라 하기 추가해 줘" / "23번 내 응용 만들어 줘"
 1. 번호와 종류(따라 하기 / 내 응용)를 확인합니다. 학생이 붙여 준 문장(한 줄 또는 5칸 명세)대로 만듭니다.
 2. `works/NN/<follow|mine>/index.html` 하나에 모두 넣습니다(외부 파일 없이 더블클릭으로 열리게). 이미지·영상이 필요하면 같은 폴더에 둡니다.
-3. 파일 맨 위 `<head>` 안에 학생이 넣은 문장을 주석으로 남깁니다: `<!-- 넣은 문장: ... -->`
-4. `</body>` 바로 앞에 이 한 줄을 넣습니다(NN과 종류만 바꿈):
+3. `<head>` 안, `<meta charset="utf-8">` 바로 다음 줄에 학생이 넣은 문장을 주석으로 남깁니다: `<!-- 넣은 문장: ... -->`
+4. `</body>` 바로 앞에 이 한 줄을 넣습니다(NN과 종류만 바꿈). 오른쪽 아래 10px 구석에 작은 알약 표시가 뜨니, 중요한 버튼을 그 자리에 두지 않습니다:
    `<script src="../../../assets/bar.js" data-no="23" data-kind="follow"></script>`
 5. `data/works.js` 에서 **그 번호의 그 칸만** 바꿉니다: `done: true`, `date: "YYYY-MM-DD"`(오늘).
    - 내 응용이면 학생에게 두 가지를 묻고 적습니다: `title`(내 응용의 이름, 짧게), `changed`(원본에서 무엇을 바꿨는지 한 줄).
@@ -36,7 +44,7 @@ works/NN/mine/index.html     NN번 내 응용
 ## 3. 올리기 — "올려 줘"
 1. 바뀐 것을 확인합니다(`git status`). 20MB가 넘는 파일이 있으면 올리지 말고 학생에게 줄이자고 말합니다.
 2. `git add -A` → `git commit -m "<무엇을 했는지 한국어 한 줄>"` → `git push`
-3. 1~2분 뒤 반영된다고 알려 주고, 방금 올린 실습의 공개 주소를 적어 줍니다.
+3. 1~2분 뒤 반영된다고 알려 주고, 방금 올린 실습의 공개 주소(위 "주소 만드는 법")를 적어 줍니다.
 - `git push --force`, 저장소 삭제, 공개/비공개 변경은 하지 않습니다.
 
 ## 4. 되돌리기 — "어제 버전으로 돌려 줘" / "방금 올린 거 취소해 줘"
@@ -54,6 +62,6 @@ works/NN/mine/index.html     NN번 내 응용
 3. 학생 이름을 묻고 `data/works.js` 의 `student.name`, `student.github`(= `gh api user --jq .login`)에 적습니다.
 4. `git init -b main` → 첫 저장(`git add -A`, `git commit -m "아카이브 시작"`)
 5. `gh repo create si-archive --public --source=. --push`
-   - 저장소 이름은 반드시 `si-archive`. 이미 있으면 새로 만들지 말고 학생에게 알립니다.
+   - 저장소 이름은 수업 공통으로 `si-archive`. 이미 있으면 새로 만들지 말고 학생에게 알립니다.
 6. 공개 주소 켜기: `gh api -X POST repos/<아이디>/si-archive/pages -f "source[branch]=main" -f "source[path]=/"`
 7. 주소 `https://<아이디>.github.io/si-archive/` 를 알려 주고, 1~2분 뒤 열어 보라고 합니다. 이 주소를 TA에게 내라고 안내합니다.
