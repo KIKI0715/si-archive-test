@@ -763,8 +763,8 @@ window.WORKS = {
    "cat": "K 글자가 움직인다",
    "part": 2,
    "follow": {
-    "done": false,
-    "date": ""
+    "done": true,
+    "date": "2026-10-15"
    },
    "mine": {
     "done": false,
